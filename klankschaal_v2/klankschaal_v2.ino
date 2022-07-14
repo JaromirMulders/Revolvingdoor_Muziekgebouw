@@ -5,16 +5,17 @@ const int hallPin = A0;
 const int stepsPerRevolution = 200;
 
 
-const int startMotorSpeed = 950;
-const int minMotorSpeed = 750;
-const int maxMotorSpeed = 300;
+const int startMotorSpeed = 1000;//950
+const int minMotorSpeed = 800;//750
+const int maxMotorSpeed = 400;
+const float dampingAmnt = 0.001;
 
 int stepCount = 0;
 int hallCount = 0;
 
 float motorAccum = 0.0;
 float startAccum = 0.0;
-
+float dampingAccum = 0.0;
 int motorSpeed = minMotorSpeed;
 
 int stepSwitch = 0;
@@ -59,10 +60,11 @@ void loop()
 
   //if hallSensor senses magnet
   if(hallSensor < 500){
-
-
     
     if(stepSwitch == 0){  //switch on only once
+
+
+            
       hallCount++;
       Serial.println("hallcount: " + (String)hallCount);
       
@@ -73,6 +75,7 @@ void loop()
       stopDelayTime = millis();
 
       delta = millis()-prevSensorTime;
+      Serial.println("delta is: " + (String)delta); 
       //Serial.println(delta);
       prevSensorTime=millis();
 
@@ -88,26 +91,32 @@ void loop()
 
 
   if(hallCount > 1){//if two sensors have passed
-
+    
     moveMotor();
      
     if(speedSwitch == 0){ //ramp speed up
-      startAccum+=1;
+      startAccum+=2;
       motorSpeed = startMotorSpeed - (int)startAccum;
 
       if(motorSpeed <= maxMotorSpeed){ //if maximum speed is reached
         speedSwitch = 1;
-      }
+      }//if
 
-      
     }else{ //ramp speed down
 
+      if(hallCount > 4){
+        dampingAccum+=dampingAmnt;//0.00075;
+        Serial.println("dampingAccum is: " + (String)dampingAccum);
+      }//if
+
       //damping speed
-      motorAccum+=0.05;//0.025;
+      motorAccum+=0.05+dampingAccum;//0.025;
       
       motorSpeed = maxMotorSpeed + (int)motorAccum;
-      motorSpeed = constrain(motorSpeed,maxMotorSpeed,minMotorSpeed); //clip motor speed
 
+      //Serial.println(motorSpeed);
+      motorSpeed = constrain(motorSpeed,maxMotorSpeed,minMotorSpeed * 10); //clip motor speed
+      Serial.println(motorSpeed);
     }
     
     //wait before counting back
@@ -148,14 +157,17 @@ void moveMotor(){
 
 void countBack(){
  
-  if(currentTime - previousTime > 1000){
+  if(currentTime - previousTime > 700){
+    Serial.println(stepCount);
     motorAccum+=0.015; //extra damping after delay
 
     stepCount--;
     stepCount = max(0,stepCount);
     if(stepCount == 0){
+      
       hallCount = 0;
       startAccum = 0;
+      dampingAccum = 0.0;
     }
 
     //Serial.println(stepCount);
